@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <link rel="stylesheet" href="index.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <audio id="clickSound" src="N56BNFY-click.mp3"></audio>
+</head>
+<body>
+    <h1>TIC-TAC-TOE</h1>
+
+    <div>
+        <p id="usercont">You: <span id="user"></span></p>
+        <p id="oppnamecont">Opponent: <span id="oppname"></span></p>
+    </div>
+
+    <br>
+    <p id="valuecont">You are playing as <span id="value"></span></p>
+    <br>
+    <p id="whosturn">Waiting for player...</p>
+
+    <div>
+        <p id="entername">Enter your name</p>
+        <input type="text" placeholder="Name" id="name" autocomplete="off">
+    </div>
+
+    <button id="find">Search for a player</button>
+    <input type="text" id="msg" placeholder="Enter your message">
+        <button onclick="sendMessage()">Send</button>
+
+
+    <div id="bigcont">
+        <div id="cont">
+            <button id="btn0" class="btn"></button>
+            <button id="btn1" class="btn"></button>
+            <button id="btn2" class="btn"></button>
+            <button id="btn3" class="btn"></button>
+            <button id="btn4" class="btn"></button>
+            <button id="btn5" class="btn"></button>
+            <button id="btn6" class="btn"></button>
+            <button id="btn7" class="btn"></button>
+            <button id="btn8" class="btn"></button>
+        </div>
+    </div>
+
+    <script>
+     
+        document.getElementById("bigcont").style.display = "none";
+        document.getElementById("usercont").style.display = "none";
+        document.getElementById("oppnamecont").style.display = "none";
+        document.getElementById("valuecont").style.display = "none";
+        document.getElementById("msg").style.display="none";
+
+        const socket = io();
+
+        let playerSymbol = "";
+        let playerName = "";
+        let gameActive = true;
+
+        document.getElementById("find").addEventListener("click", () => {
+            playerName = document.getElementById("name").value;
+            if (playerName) {
+                socket.emit("find", { name: playerName });
+            }
+        });
+
+        // Event listener for when a player is found
+        socket.on("find", (data) => {
+            if (data.allPlayer.length > 0) {
+                const game = data.allPlayer[0];
+
+                playerSymbol = game.p1.p1name === playerName ? game.p1.p1value : game.p2.p2value;
+                document.getElementById("user").innerText = playerName;
+                document.getElementById("oppname").innerText = game.p1.p1name === playerName ? game.p2.p2name : game.p1.p1name;
+                document.getElementById("value").innerText = playerSymbol;
+
+                document.getElementById("bigcont").style.display = "block";
+                document.getElementById("usercont").style.display = "block";
+                document.getElementById("oppnamecont").style.display = "block";
+                document.getElementById("valuecont").style.display = "block";
+                document.getElementById("msg").style.display="block";
+                document.getElementById("whosturn").innerText = "X's Turn";
+            }
+        });
+
+        // Event listener for updating the board
+        socket.on("playing", (data) => {
+            const game = data.allPlayer[0];
+            for (let i = 0; i < game.board.length; i++) {
+                document.getElementById(`btn${i}`).innerText = game.board[i] || "";
+            }
+            document.getElementById("whosturn").innerText = game.currentTurn === playerSymbol ? "Your turn!" : `Opponent's turn (${game.currentTurn})`;
+        });
+        function sendMessage() {
+    let msg = document.getElementById("msg").value; // Get the value of the input field
+    socket.emit("msg", { msg: msg }); // Emit the message to the server
+  }
+
+       
+        socket.on("gameResult", (data) => {
+            gameActive = false;
+            document.getElementById("whosturn").innerText = data.result === "draw" ? "It's a draw!" : `${data.result} wins!`;
+            document.querySelectorAll(".btn").forEach(button => button.disabled = true);
+        });
+
+        // Handle user move when a button is clicked
+        document.querySelectorAll(".btn").forEach(button => {
+    button.addEventListener("click", function () {
+        if (gameActive && this.innerText === "") {
+            const cellId = this.id.replace("btn", ""); // Get the cell index
+
+            // Emit the playing event to the server
+            socket.emit("playing", { name: playerName, value: playerSymbol, id: cellId });
+            
+            // Play sound when the button is clicked
+            const sound = document.getElementById("clickSound");
+            sound.play();
+        }
+    });
+});
+    </script>
+</body>
+</html>
